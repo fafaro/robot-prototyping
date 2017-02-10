@@ -237,6 +237,7 @@ public:
 		m_constraints.push_back(c);
 		m_constraintsById[hc.id] = c;
 		c->setDbgDrawSize(0.1);
+		c->enableMotor(true);
 	}
 
 	btRigidBody *getRigidBody(std::string const& id) {
@@ -324,6 +325,50 @@ public:
 	}
 
 };
+
+class GLUtil
+{
+public:
+	static glm::vec3 color;
+
+	static void drawLine(glm::vec3 const& a, glm::vec3 const& b) 
+	{
+		drawLine(a, b, color);
+	}
+
+	static void drawLine(glm::vec3 const& a, glm::vec3 const& b, glm::vec3 const& col)
+	{
+		glBegin(GL_LINES);
+		glColor3f(col.x, col.y, col.z);
+		glVertex3f(a.x, a.y, a.z);
+		glVertex3f(b.x, b.y, b.z);
+		glEnd();
+	}
+
+	static void drawPointStar(glm::vec3 const& p) 
+	{
+		auto size = 0.01;
+		glPushMatrix();
+		glTranslatef(p.x, p.y, p.z);
+		glBegin(GL_LINES);
+		glColor3f(color.x, color.y, color.z);
+		glVertex3f(size, 0, 0); glVertex3f(-size, 0, 0);
+		glVertex3f(0, size, 0); glVertex3f(0, -size, 0);
+		glVertex3f(0, 0, size); glVertex3f(0, 0, -size);
+		glEnd();
+		glPopMatrix();
+	}
+
+	static void drawAxes(float size = 0.1f) 
+	{
+		glBegin(GL_LINES);
+		glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(size, 0, 0);
+		glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, size, 0);
+		glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, size);
+		glEnd();
+	}
+};
+glm::vec3 GLUtil::color = glm::vec3(1, 1, 1);
 
 class GLWindow {
 public:
@@ -657,51 +702,20 @@ public:
 		auto& from = std::get<0>(ray);
 		auto& to = std::get<1>(ray);
 		to = from + (to - from) * 100;
-		////printf("(%f, %f, %f) - (%f, %f, %f)\r\n", from.x(), from.y(), from.z(), to.x(), to.y(), to.z());
-
-		////drawPoint(to);
-		////drawLine(from, to);
 
 		auto world = m_physics->getWorld();
 		btCollisionWorld::ClosestRayResultCallback RayCallback(from, to);
 		world->rayTest(from, to, RayCallback);
 		if (RayCallback.hasHit()) {
-			//printf("Hit!\r\n");
 			btVector3 End = RayCallback.m_hitPointWorld;
 			btVector3 Normal = End + RayCallback.m_hitNormalWorld;
 			btRigidBody *Body = btRigidBody::upcast(const_cast<btCollisionObject*>(RayCallback.m_collisionObject));
 
 			hitPoint = glm::vec3(End.x(), End.y(), End.z());
 			hitBody = Body;
-		//	drawPoint(End);
-		//	printf("Hit %p\r\n", RayCallback.m_collisionObject);
 			return true;
 		}
 		return false;
-	}
-
-	void render() 
-	{
-		//auto drawPoint = [](btVector3 const& p) {
-		//	auto size = 0.01;
-		//	glPushMatrix();
-		//	glTranslatef(p.x(), p.y(), p.z());
-		//	glBegin(GL_LINES);
-		//	glColor3f(1, 1, 0);
-		//	glVertex3f(size, 0, 0); glVertex3f(-size, 0, 0);
-		//	glVertex3f(0, size, 0); glVertex3f(0, -size, 0);
-		//	glVertex3f(0, 0, size); glVertex3f(0, 0, -size);
-		//	glEnd();
-		//	glPopMatrix();
-		//};
-
-		//auto drawLine = [](btVector3 const& a, btVector3 const& b) {
-		//	glBegin(GL_LINES);
-		//	glColor3f(1, 0, 1);
-		//	glVertex3f(a.x(), a.y(), a.z());
-		//	glVertex3f(b.x(), b.y(), b.z());
-		//	glEnd();
-		//};
 	}
 };
 
@@ -731,77 +745,23 @@ public:
 		return t;
 	}
 };
-#pragma endregion
 
-#pragma region Program
-class Program;
-void createPhysics(Physics&);
-void renderPhysics(Physics&, Program&);
-void doPhysics(Physics&, double);
-
-class Program {
+class GLViewWindow : public GLWindow
+{
 public:
-	Timer                timer;
-	Physics              physics;
-	GLWindow             window;
-	Camera               camera;
-	CameraController     ctrl;
-	PickObjectController pickCtrl;
+	std::function<void()> renderFunction;
+	Camera camera;
+	CameraController cameraController;
 
-	Program() :
-		ctrl(&camera),
-		pickCtrl(&camera, &physics, &window)
+	GLViewWindow()
+		: cameraController(&camera)
 	{
-		window.addKeyCallback('r', [&]() { printf("Restarting ...\n"); physics.restart(); });
-		window.addListener(&ctrl);
-		window.addListener(&pickCtrl);
+		addListener(&cameraController);
 	}
 
-	void initPhysics() {
-		createPhysics(physics);
-	}
-
-	void show() 
+	void run() 
 	{
-		auto drawGrid = []() {
-			glBegin(GL_LINES);
-			for (int i = -10; i <= 10; i++) {
-				float extents = 10 * 0.1;
-				float x = i * 0.1;
-				glColor3f(0.1, 0.1, 0.1);
-				glVertex3f(-extents, x, 0);
-				glVertex3f(extents, x, 0);
-				glVertex3f(x, -extents, 0);
-				glVertex3f(x, extents, 0);
-			}
-			glEnd();
-		};
-		auto drawAxes = []() {
-			glBegin(GL_LINES);
-			float size = 0.1f;
-			glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(size, 0, 0);
-			glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, size, 0);
-			glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, size);
-			glEnd();
-		};
-
-		auto setupProjections = [&]() {
-			camera.aspectRatio = (double)window.width() / window.height();
-			camera.updateMatrices();
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(glm::value_ptr(camera.projection));
-			//glLoadIdentity();
-			//gluPerspective(60.0, (double)window.width() / window.height(), 0.1, 100.0);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadMatrixf(glm::value_ptr(camera.modelView));
-			//glLoadIdentity();
-			//gluLookAt(camera.position.x(), camera.position.y(), camera.position.z(), camera.lookAt.x(), camera.lookAt.y(), camera.lookAt.z(), 0, 0, 1);
-		};
-
-		/* Loop until the user closes the window */
-		while (!window.isClosed())
-		{
-			doPhysics(physics, timer.stepTime());
+		while (!isClosed()) {
 			setupProjections();
 
 			glClearColor(0.3f, 0.3f, 0.3f, 0);
@@ -809,102 +769,320 @@ public:
 			drawGrid();
 			drawAxes();
 
-			renderPhysics(physics, *this);
+			renderFunction();
 
-			window.swapBuffers();
-			window.processEvents();
+			swapBuffers();
+			processEvents();
 		}
 	}
 
-	int main() {
-		initPhysics();
- 		show();
+private:
+	void drawGrid() 
+	{
+		glBegin(GL_LINES);
+		for (int i = -10; i <= 10; i++) {
+			float extents = 10 * 0.1;
+			float x = i * 0.1;
+			glColor3f(0.1, 0.1, 0.1);
+			glVertex3f(-extents, x, 0);
+			glVertex3f(extents, x, 0);
+			glVertex3f(x, -extents, 0);
+			glVertex3f(x, extents, 0);
+		}
+		glEnd();
+	}
+
+	void drawAxes() 
+	{
+		glBegin(GL_LINES);
+		float size = 0.1f;
+		glColor3f(1, 0, 0); glVertex3f(0, 0, 0); glVertex3f(size, 0, 0);
+		glColor3f(0, 1, 0); glVertex3f(0, 0, 0); glVertex3f(0, size, 0);
+		glColor3f(0, 0, 1); glVertex3f(0, 0, 0); glVertex3f(0, 0, size);
+		glEnd();
+	}
+
+	void setupProjections() {
+		camera.aspectRatio = (double)width() / height();
+		camera.updateMatrices();
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrixf(glm::value_ptr(camera.projection));
+		glMatrixMode(GL_MODELVIEW);
+		glLoadMatrixf(glm::value_ptr(camera.modelView));
+	};
+};
+#pragma endregion
+
+#pragma region Program
+class Program {
+public:
+	Timer                timer;
+	Physics              physics;
+	GLViewWindow         window;
+	PickObjectController pickCtrl;
+
+	Program() :
+		pickCtrl(&window.camera, &physics, &window)
+	{
+		window.addKeyCallback('r', [&]() { printf("Restarting ...\n"); physics.restart(); });
+		window.addListener(&pickCtrl);
+	}
+
+	void initPhysics() {
+		auto ground = Physics::CRB::RigidBody();
+		//ground.setShape(new Physics::CRB::Shapes::Plane(btVector3(0, 0, 1)));
+		ground.setShape(new Physics::CRB::Shapes::Box(btVector3(1, 1, 1)));
+		ground.setPosition(btVector3(0, 0, -1));
+		ground.mass = 0;
+		ground.debugVisible = false;
+		physics.create(ground);
+
+
+		{
+			auto box3 = Physics::CRB::RigidBody();
+			box3.setShape(new Physics::CRB::Shapes::Box(btVector3(0.05, 0.05, 0.05)));
+			box3.mass = 1;
+			box3.setPosition(btVector3(-0.5, 0, 0.05));
+			for (int i = 0; i < 5; i++) {
+				box3.setPosition(btVector3(-0.5, 0, 0.05 + i * 0.1));
+				physics.create(box3);
+			}
+		}
+
+		auto createArm = [&](std::string const& name, btVector3 const& origin, bool stuck) {
+			auto box1 = Physics::CRB::RigidBody();
+			box1.setShape(new Physics::CRB::Shapes::Box(btVector3(0.04, 0.04, 0.15)));
+			box1.setPosition(btVector3(0, 0, 0.15) + origin);
+			box1.mass = stuck ? 0 : 0.1;
+			box1.id = name + "." + "box1";
+			physics.create(box1);
+
+			auto box2 = Physics::CRB::RigidBody();
+			box2.setShape(new Physics::CRB::Shapes::Box(btVector3(0.04, 0.04, 0.15)));
+			box2.mass = 0.1;
+			box2.setPosition(btVector3(0, 0.1, 0.45) + origin);
+			//box2.transform.setRotation(btQuaternion(btVector3(1, 0, 0), 1.0));
+			box2.id = name + "." + "box2";
+			box2.canDeactivate = false;
+			physics.create(box2);
+
+			auto c = Physics::CRB::HingeConstraint();
+			c.id = name + "." + "c1";
+			c.body1 = name + "." + "box1";
+			c.body2 = name + "." + "box2";
+			c.localTransform1.setIdentity();
+			c.localTransform1.setOrigin(btVector3(0, 0, 0.15));
+			c.localTransform1.setRotation(btQuaternion(btVector3(0, 1, 0), btRadians(90)));
+			c.localTransform2.setIdentity();
+			c.localTransform2.setOrigin(btVector3(0, 0, -0.15));
+			c.localTransform2.setRotation(btQuaternion(btVector3(0, 1, 0), btRadians(90)));
+			c.limits = { btRadians(-160), btRadians(160) };
+			physics.create(c);
+		};
+		createArm("arm1", btVector3(0, 0, 0), true);
+		createArm("arm2", btVector3(0.5, 0, 0), false);
+
+		static struct InternalTickData {
+			Physics* physics;
+			btScalar time;
+		} internalTickData;
+
+		internalTickData.physics = &physics;
+		internalTickData.time = 0;
+
+		auto& bphysics = *physics.getWorld();
+		bphysics.setInternalTickCallback([](auto world, auto timestep) {
+			auto& data = *static_cast<InternalTickData*>(world->getWorldUserInfo());
+			auto doMotor = [&](std::string const& name) {
+				auto c = static_cast<btHingeConstraint*>(data.physics->getConstraint(name + "." + "c1"));
+				//c->setMotorTarget(0, timestep);
+				c->enableAngularMotor(true, btSin(data.time), 0.5);
+				//c->enableMotor(true);
+				//c->setMotorTarget(btSin(data.time * 0.5) * 0.1, timestep);
+			};
+			doMotor("arm1");
+			doMotor("arm2");
+			printf("Internal tick %f\r\n", timestep);
+			data.time += timestep;
+		}, &internalTickData, true);
+	}
+
+	void renderPhysics() 
+	{
+		physics.debugDraw();
+	}
+
+	void doPhysics() 
+	{
+		physics.simulate(timer.stepTime());
+	}
+
+	void show() 
+	{
+		window.renderFunction = [&]() {
+			doPhysics();
+			renderPhysics();
+		};
+		window.run();
+	}
+
+	static int main() {
+		Program program;
+		program.initPhysics();
+ 		program.show();
 		return 0;
 	}
 };
 #pragma endregion
 
-void createPhysics(Physics& physics) {
-	auto ground = Physics::CRB::RigidBody();
-	//ground.setShape(new Physics::CRB::Shapes::Plane(btVector3(0, 0, 1)));
-	ground.setShape(new Physics::CRB::Shapes::Box(btVector3(1, 1, 1)));
-	ground.setPosition(btVector3(0, 0, -1));
-	ground.mass = 0;
-	ground.debugVisible = false;
-	physics.create(ground);
-
-
-	{
-		auto box3 = Physics::CRB::RigidBody();
-		box3.setShape(new Physics::CRB::Shapes::Box(btVector3(0.05, 0.05, 0.05)));
-		box3.mass = 1;
-		box3.setPosition(btVector3(-0.5, 0, 0.05));
-		for (int i = 0; i < 5; i++) {
-			box3.setPosition(btVector3(-0.5, 0, 0.05 + i * 0.1));
-			physics.create(box3);
-		}
-	}
-
-	auto createArm = [&](btVector3 const& origin, bool stuck) {
-		auto box1 = Physics::CRB::RigidBody();
-		box1.setShape(new Physics::CRB::Shapes::Box(btVector3(0.04, 0.04, 0.15)));
-		box1.setPosition(btVector3(0, 0, 0.15) + origin);
-		box1.mass = stuck ? 0 : 0.5;
-		box1.id = "box1";
-		physics.create(box1);
-
-		auto box2 = Physics::CRB::RigidBody();
-		box2.setShape(new Physics::CRB::Shapes::Box(btVector3(0.04, 0.04, 0.15)));
-		box2.mass = 0.5;
-		box2.setPosition(btVector3(0, 0.1, 0.45) + origin);
-		//box2.transform.setRotation(btQuaternion(btVector3(1, 0, 0), 1.0));
-		box2.id = "box2";
-		box2.canDeactivate = false;
-		physics.create(box2);
-
-		auto c = Physics::CRB::HingeConstraint();
-		c.id = "c1";
-		c.body1 = "box1";
-		c.body2 = "box2";
-		c.localTransform1.setIdentity();
-		c.localTransform1.setOrigin(btVector3(0, 0, 0.15));
-		c.localTransform1.setRotation(btQuaternion(btVector3(0, 1, 0), btRadians(90)));
-		c.localTransform2.setIdentity();
-		c.localTransform2.setOrigin(btVector3(0, 0, -0.15));
-		c.localTransform2.setRotation(btQuaternion(btVector3(0, 1, 0), btRadians(90)));
-		c.limits = { btRadians(-160), btRadians(160) };
-		physics.create(c);
-	};
-	createArm(btVector3(0, 0, 0), true);
-	createArm(btVector3(0.5, 0, 0), false);
-}
-
-void renderPhysics(Physics& physics, Program& program) {
-	physics.debugDraw();
-	//program.pickCtrl.render();
-	/*glBegin(GL_LINES);
-	glColor3f(1, 0, 1);
-	glVertex3f(0, 0, 0);
-	glVertex3f(1, 1, 1);
-	glEnd();*/
-
-}
-
-void doPhysics(Physics& physics, double t) {
-	//auto box = physics.getRigidBody("box2");
-	//if (box) box->applyImpulse(btVector3(1, 1, 5) * 0.0002, btVector3(1, 1, 0));
-	physics.simulate(t);
-}
-
-#pragma region Other
-int main()
+#pragma region Main
+void render(std::function<void()> r)
 {
-	if (!glfwInit()) throw std::exception("Unable to initialize glfw library.");
-	Program program;
-	return program.main();
+	GLViewWindow window;
+	window.renderFunction = r;
+	window.run();
 }
 
-void simpleSimulation()
+int program02() {
+	class Joint;
+
+	class Link
+	{
+	public:
+		std::string name;
+		Link *parent;
+		std::list<Joint> joints;
+
+		Link(std::string name) : name(name), parent(nullptr) {}
+	};
+
+	class Joint
+	{
+	public:
+		Link *child;
+		glm::mat4 origin;
+	};
+
+	class LinkPool : public std::map<std::string, Link*>
+	{
+	public:
+		Link* get(std::string const& name)
+		{
+			auto x = this->find(name);
+			if (x != this->end()) return x->second;
+			return ((*this)[name] = new Link(name));
+		}
+
+		Link* getRoot()
+		{
+			for (auto& entry : *this)
+				if (!entry.second->parent) 
+					return entry.second;
+			return nullptr;
+		}
+
+		~LinkPool() {
+			for (auto& entry : *this)
+				delete entry.second;
+			this->clear();
+		}
+	};
+
+	class URDFDoc : private tinyxml2::XMLDocument
+	{
+	public:
+		class JointElement
+		{
+		private:
+			tinyxml2::XMLElement *elem;
+		public:
+			JointElement(tinyxml2::XMLElement* elem) : elem(elem) {}
+			std::string name() const { return elem->Attribute("name");  }
+			std::string parent() const { 
+				return elem->FirstChildElement("parent")->Attribute("link");
+			}
+			std::string child() const {
+				return elem->FirstChildElement("child")->Attribute("link");
+			}
+			glm::mat4 origin() const {
+				auto originElem = elem->FirstChildElement("origin");
+				auto xyz = strToVec3(originElem->Attribute("xyz"));
+				auto rpy = strToVec3(originElem->Attribute("rpy"));
+
+				auto transform = glm::yawPitchRoll(rpy.z, rpy.y, rpy.x);
+				transform[3] = glm::vec4(xyz, 1);
+				return transform;
+			}
+		};
+
+		URDFDoc(std::string const& s) 
+		{
+			LoadFile(s.c_str());
+		}
+
+		auto allJoints()
+		{
+			class Iterator {
+			public:
+				tinyxml2::XMLElement *element;
+
+				Iterator(tinyxml2::XMLElement *p) : element(p) {}
+				void operator++() { element = element->NextSiblingElement("joint"); }
+				bool operator!=(Iterator const& rhs) const { return element != rhs.element; }
+				auto operator*() { return JointElement(element); }
+			};
+			class Iterable { 
+			public:
+				URDFDoc *doc;
+				Iterable(URDFDoc *doc) : doc(doc) {}
+				Iterator begin() {
+					return doc->RootElement()->FirstChildElement("joint");
+				}
+				Iterator end() {
+					return 0;
+				}
+			} iterable(this);
+			return iterable;
+		}
+	private:
+		static glm::vec3 strToVec3(std::string const& s) {
+			double x, y, z;
+			std::istringstream iss(s);
+			iss >> x >> y >> z;
+			return glm::vec3(x, y, z);
+		}
+	};
+
+	URDFDoc doc("../data/cyton_gamma_1500/cyton_gamma_1500.urdf");
+	LinkPool linkPool;
+
+	for (auto x : doc.allJoints()) {
+		auto parent = linkPool.get(x.parent());
+		auto child = linkPool.get(x.child());
+		parent->joints.push_back(Joint{ child, x.origin() });
+		child->parent = parent;
+	}
+	auto rootLink = linkPool.getRoot();
+	std::cout << rootLink->name;
+
+	render([&]() {
+		std::function<void(Link*)> drawLink = [&](Link *link) {
+			GLUtil::drawAxes();
+			for (auto joint : link->joints) {
+				GLUtil::drawLine(glm::vec3(0, 0, 0), joint.origin[3]);
+				glMatrixMode(GL_MODELVIEW);
+				glPushMatrix();
+				glMultMatrixf(glm::value_ptr(joint.origin));
+				drawLink(joint.child);
+				glPopMatrix();
+			}
+		};
+		drawLink(rootLink);
+	});
+	return 0;
+}
+
+int program03()
 {
 	Physics physics;
 	{
@@ -935,7 +1113,23 @@ void simpleSimulation()
 		physics.simulate(t);
 	}
 	getchar();
-
+	return 0;
 }
+
+int main()
+{
+	if (!glfwInit()) throw std::exception("Unable to initialize glfw library.");
+
+	int choice = 1;
+	switch (choice) {
+	case 1:
+		return Program::main();
+	case 2:
+		return program02(); // URDF loader
+	case 3: 
+		return program03();
+	}
+}
+
 #pragma endregion
 

@@ -27,7 +27,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/base.dae"/>
+        <mesh filename="meshes/base.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -58,7 +58,7 @@
     <visual>
       <origin rpy="1.5708 0 0.384" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/shoulder_roll.dae"/>
+        <mesh filename="meshes/shoulder_roll.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -99,7 +99,7 @@
     <visual>
       <origin rpy="1.5708 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/shoulder_pitch.dae"/>
+        <mesh filename="meshes/shoulder_pitch.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -140,7 +140,7 @@
     <visual>
       <origin rpy="1.5708 0 -1.5708" xyz="0 0 0.0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/shoulder_yaw.dae"/>
+        <mesh filename="meshes/shoulder_yaw.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -181,7 +181,7 @@
     <visual>
       <origin rpy="1.5708 0 3.1416" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/elbow_pitch.dae"/>
+        <mesh filename="meshes/elbow_pitch.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -222,7 +222,7 @@
     <visual>
       <origin rpy="1.5708 0 1.5708" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/elbow_yaw.dae"/>
+        <mesh filename="meshes/elbow_yaw.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -263,7 +263,7 @@
     <visual>
       <origin rpy="1.5708 0 1.5708" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/wrist_pitch.dae"/>
+        <mesh filename="meshes/wrist_pitch.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -304,7 +304,7 @@
     <visual>
       <origin rpy="3.1416 0 -1.5708" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/wrist_roll.dae"/>
+        <mesh filename="meshes/wrist_roll.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -345,7 +345,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/gripper_finger1.dae"/>
+        <mesh filename="meshes/gripper_finger1.dae"/>
       </geometry>
     </visual>
     <collision>
@@ -385,7 +385,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://cyton_gamma_1500_description/meshes/gripper_finger2.dae"/>
+        <mesh filename="meshes/gripper_finger2.dae"/>
       </geometry>
     </visual>
     <collision>

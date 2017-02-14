@@ -60,12 +60,15 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Test01.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Test01.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Test01.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
@@ -74,7 +77,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\..\bullet3\src;$(SolutionDir)\..\glfw\include;$(SolutionDir)\..\glm;$(SolutionDir)\..\tinyxml2;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\..\bullet3\src;$(SolutionDir)\..\glfw\include;$(SolutionDir)\..\glm;$(SolutionDir)\..\tinyxml2;C:\local\boost_1_63_0;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PreprocessorDefinitions>WIN32;_DEBUG;TINYXML2_IMPORT;_CONSOLE;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -101,7 +104,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\..\bullet3\src;$(SolutionDir)\..\glfw\include;$(SolutionDir)\..\glm;$(SolutionDir)\..\tinyxml2;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\..\bullet3\src;$(SolutionDir)\..\glfw\include;$(SolutionDir)\..\glm;$(SolutionDir)\..\tinyxml2;C:\local\boost_1_63_0;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PreprocessorDefinitions>WIN32;TINYXML2_IMPORT;_MBCS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -135,6 +138,18 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="stdafx.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\data\cyton_gamma_1500\cyton_gamma_1500.urdf">
+      <SubType>Designer</SubType>
+    </None>
+    <None Include="..\..\README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\bullet3\build3\vs2010\Bullet3Common.vcxproj">
+      <Project>{41deefd0-1f5b-8140-b9e5-50a21196408d}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\bullet3\build3\vs2010\BulletCollision.vcxproj">
       <Project>{22b8214a-3acc-b34c-aa33-0048adde2f0c}</Project>
     </ProjectReference>
@@ -150,12 +165,9 @@
     <ProjectReference Include="..\..\tinyxml2\tinyxml2\tinyxml2.vcxproj">
       <Project>{d1c528b6-aa02-4d29-9d61-dc08e317a70d}</Project>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="stdafx.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\data\cyton_gamma_1500\cyton_gamma_1500.urdf" />
+    <ProjectReference Include="..\RobotLib\RobotLib.vcxproj">
+      <Project>{c5e01174-f7ec-4d18-bda2-5f4e46d3c7a9}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -10,14 +10,17 @@ public:
 	Physics              physics;
 	GLViewWindow         window;
 	PickObjectController pickCtrl;
+	bool                 pauseSimulation = true;
 
 	Program() :
 		pickCtrl(&window.camera, &physics, &window)
 	{
-		window.addKeyCallback('r', [&]() { printf("Restarting ...\n"); physics.restart(); });
+		window.addKeyCallback('r', [this]() { printf("Restarting ...\n"); physics.restart(); });
+		window.addKeyCallback('p', [this]() { pauseSimulation = !pauseSimulation; });
 		window.addListener(&pickCtrl);
 	}
 
+#if 0
 	void initPhysics() {
 		auto ground = Physics::CRB::RigidBody();
 		//ground.setShape(new Physics::CRB::Shapes::Plane(btVector3(0, 0, 1)));
@@ -26,7 +29,6 @@ public:
 		ground.mass = 0;
 		ground.debugVisible = false;
 		physics.create(ground);
-
 
 		{
 			auto box3 = Physics::CRB::RigidBody();
@@ -96,6 +98,77 @@ public:
 			data.time += timestep;
 		}, &internalTickData, true);
 	}
+#endif
+
+	void initPhysics() {
+		typedef Physics::CRB CRB;
+
+		auto ground = CRB::RigidBody();
+		ground.shape = CRB::Shapes::Box(btVector3(10, 10, 1));
+		ground.setPosition(btVector3(0, 0, -1));
+		ground.mass = 0;
+		ground.debugVisible = false;
+		physics.create(ground);
+
+		auto box = CRB::RigidBody();
+		box.mass = 1;
+		box.shape = CRB::Shapes::Box(btVector3(0.05, 0.05, 0.05));
+		for (int i = 0; i < 2; i++)
+			for (int j = 0; j < 2; j++)
+				for (int k = 0; k < 2; k++) {
+					box.setPosition(btVector3(-0.9, 0, 0.2) + btVector3(i * 0.11f, j * 0.11f, k * 0.11f));
+					physics.create(box);
+				}
+
+		auto root = CRB::RigidBody();
+		root.id = "root";
+		root.mass = 0;
+		root.shape = CRB::Shapes::Box(btVector3(0.01, 0.01, 0.10));
+		root.setPosition(btVector3(0, 0, 0.10));
+		physics.create(root);
+
+		auto bar = CRB::RigidBody();
+		bar.id = "bar";
+		bar.mass = 0.3;
+		bar.shape = CRB::Shapes::Box(btVector3(0.10, 0.01, 0.01));
+		bar.setPosition(btVector3(0, 0, 0.2 + 0.01));
+		physics.create(bar);
+
+		auto plate = CRB::RigidBody();
+		plate.id = "plate";
+		plate.mass = 0.1;
+		plate.shape = CRB::Shapes::Box(btVector3(0.15, 0.15, 0.01));
+		plate.setPosition(btVector3(0, 0, 0.2 + 0.02 + 0.01));
+		physics.create(plate);
+
+		auto firstHinge = CRB::HingeConstraint();
+		firstHinge.body1 = "root";
+		firstHinge.body2 = "bar";
+		firstHinge.localTransform1.setIdentity();
+		firstHinge.localTransform1.setOrigin(btVector3(0, 0, 0.10 + 0.01));
+		firstHinge.localTransform1.setRotation(btQuaternion(btVector3(1, 0, 0), SIMD_HALF_PI));
+		firstHinge.localTransform2.setIdentity();
+		firstHinge.localTransform2.setRotation(btQuaternion(btVector3(1, 0, 0), SIMD_HALF_PI));
+		firstHinge.limits = { -0.3f, 0.3f };
+		physics.create(firstHinge);
+
+		auto secondHinge = CRB::HingeConstraint();
+		secondHinge.body1 = "bar";
+		secondHinge.body2 = "plate";
+		secondHinge.localTransform1.setIdentity();
+		secondHinge.localTransform1.setOrigin(btVector3(0, 0, 0.01 + 0.01));
+		secondHinge.localTransform1.setRotation(btQuaternion(btVector3(0, 1, 0), SIMD_HALF_PI));
+		secondHinge.localTransform2.setIdentity();
+		secondHinge.localTransform2.setRotation(btQuaternion(btVector3(0, 1, 0), SIMD_HALF_PI));
+		secondHinge.limits = { -0.3f, 0.3f };
+		physics.create(secondHinge);
+
+		auto ball = CRB::RigidBody();
+		ball.shape = CRB::Shapes::Sphere(0.02);
+		ball.mass = 0.1;
+		ball.setPosition(btVector3(0, 0, 0.4));
+		physics.create(ball);
+	}
 
 	void renderPhysics() 
 	{
@@ -110,7 +183,7 @@ public:
 	void show() 
 	{
 		window.renderFunction = [&]() {
-			doPhysics();
+			if (!pauseSimulation) doPhysics();
 			renderPhysics();
 		};
 		window.run();
@@ -393,14 +466,14 @@ int program03()
 	{
 		auto ground = Physics::CRB::RigidBody();
 		//ground.setShape(new Physics::CRB::Shapes::Plane(btVector3(0, 0, 1)));
-		ground.setShape(new Physics::CRB::Shapes::Box(btVector3(1, 1, 1)));
+		ground.shape = Physics::CRB::Shapes::Box(btVector3(1, 1, 1));
 		ground.setPosition(btVector3(0, 0, -1));
 		ground.mass = 0;
 		ground.id = "ground";
 		physics.create(ground);
 
 		auto box = Physics::CRB::RigidBody();
-		box.setShape(new Physics::CRB::Shapes::Box(btVector3(0.1, 0.1, 0.1)));
+		box.shape = Physics::CRB::Shapes::Box(btVector3(0.1, 0.1, 0.1));
 		box.setPosition(btVector3(0, 0, 10));
 		box.mass = 1;
 		box.id = "box";

@@ -91,14 +91,14 @@ namespace robotlib
 			};
 
 			class RigidBody {
-				std::shared_ptr<Shape> shape;
 			public:
 				RigidBody() {
 					transform.setIdentity();
 				}
-				void setShape(Shape *shape) { this->shape.reset(shape); }
-				Shape *getShape() const { return this->shape.get(); }
+
 				void setPosition(btVector3 const& pos) { transform.setOrigin(pos); }
+
+				boost::any shape;
 				btTransform transform;
 				btScalar mass;
 				std::string id;
@@ -115,6 +115,12 @@ namespace robotlib
 						this->size = size;
 					}
 					virtual ~Box() {}
+				};
+				class Sphere : public Shape {
+				public:
+					btScalar radius;
+					Sphere(btScalar radius) : radius(radius) {}
+					virtual ~Sphere() {}
 				};
 				class Plane : public Shape {
 				public:
@@ -230,15 +236,19 @@ namespace robotlib
 
 		void create(CRB::RigidBody const& rbdata) {
 			if (!createScriptRunning) createScript.append(rbdata);
-			auto shapeLhs = rbdata.getShape();
+			auto shapeLhs = rbdata.shape;
 			btCollisionShape *shapeRhs = nullptr;
 
-			if (typeid(*shapeLhs) == typeid(CRB::Shapes::Box)) {
-				auto boxShapeLhs = (CRB::Shapes::Box*)shapeLhs;
-				shapeRhs = new btBoxShape(boxShapeLhs->size);
+			if (shapeLhs.type() == typeid(CRB::Shapes::Box)) {
+				auto boxShapeLhs = boost::any_cast<CRB::Shapes::Box>(shapeLhs);
+				shapeRhs = new btBoxShape(boxShapeLhs.size);
 			}
-			else if (typeid(*shapeLhs) == typeid(CRB::Shapes::Plane)) {
-				auto planeShapeLhs = *(CRB::Shapes::Plane*)shapeLhs;
+			else if (shapeLhs.type() == typeid(CRB::Shapes::Sphere)) {
+				auto sphereShapeLhs = boost::any_cast<CRB::Shapes::Sphere>(shapeLhs);
+				shapeRhs = new btSphereShape(sphereShapeLhs.radius);
+			}
+			else if (shapeLhs.type() == typeid(CRB::Shapes::Plane)) {
+				auto planeShapeLhs = boost::any_cast<CRB::Shapes::Plane>(shapeLhs);
 				shapeRhs = new btStaticPlaneShape(planeShapeLhs.normal, planeShapeLhs.distance);
 			}
 			else throw new std::exception("Shape not defined!");

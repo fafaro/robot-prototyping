@@ -30,6 +30,7 @@
 namespace robotlib
 {
 	void init();
+	void render(std::function<void()> r);
 
 #pragma region Conversions
 	class ConvertVec3
@@ -66,7 +67,7 @@ namespace robotlib
 
 #pragma region Classes
 
-	const int debugDrawMode
+	static int debugDrawMode
 		= btIDebugDraw::DebugDrawModes::DBG_DrawWireframe
 		| btIDebugDraw::DebugDrawModes::DBG_DrawConstraints
 		| btIDebugDraw::DebugDrawModes::DBG_DrawConstraintLimits;
@@ -100,17 +101,19 @@ namespace robotlib
 
 				boost::any shape;
 				btTransform transform;
-				btScalar mass;
-				std::string id;
+				btScalar mass = 1;
+				std::string id = "default";
 				bool debugVisible = true;
 				bool canDeactivate = true;
+				bool disableCollision = false;
 			};
 
 			class Shapes {
 			public:
 				class Box : public Shape {
 				public:
-					btVector3 size;
+					btVector3 size = btVector3(1, 1, 1);
+					Box() {}
 					Box(btVector3 const& size) {
 						this->size = size;
 					}
@@ -118,7 +121,8 @@ namespace robotlib
 				};
 				class Sphere : public Shape {
 				public:
-					btScalar radius;
+					btScalar radius = 1;
+					Sphere() {}
 					Sphere(btScalar radius) : radius(radius) {}
 					virtual ~Sphere() {}
 				};
@@ -142,6 +146,7 @@ namespace robotlib
 				std::string body1, body2;
 				btTransform localTransform1, localTransform2;
 				struct { btScalar lower, upper; } limits;
+				std::function<btScalar(btScalar)> velocityFunction;
 			};
 		};
 
@@ -200,17 +205,18 @@ namespace robotlib
 			}
 		};
 
-		btCollisionConfiguration*                 m_collisionConfiguration = nullptr;
-		btDispatcher*                             m_dispatcher = nullptr;
-		btBroadphaseInterface*                    m_broadphase = nullptr;
-		btConstraintSolver*                       m_solver = nullptr;
-		btDynamicsWorld*                          m_dynamicsWorld = nullptr;
-		DebugDrawer                               m_debugDrawer;
-		std::vector<btRigidBody*>                 m_rigidBodies;
-		std::vector<btTypedConstraint*>           m_constraints;
-		std::map<std::string, btRigidBody*>       m_rigidBodiesById;
-		std::map<std::string, btTypedConstraint*> m_constraintsById;
-		CreateScript                              createScript;
+		btCollisionConfiguration*                    m_collisionConfiguration = nullptr;
+		btDispatcher*                                m_dispatcher = nullptr;
+		btBroadphaseInterface*                       m_broadphase = nullptr;
+		btConstraintSolver*                          m_solver = nullptr;
+		btDynamicsWorld*                             m_dynamicsWorld = nullptr;
+		DebugDrawer                                  m_debugDrawer;
+		std::vector<btRigidBody*>                    m_rigidBodies;
+		std::vector<btTypedConstraint*>              m_constraints;
+		std::map<std::string, btRigidBody*>          m_rigidBodiesById;
+		std::map<std::string, btTypedConstraint*>    m_constraintsById;
+		std::map<std::string, CRB::HingeConstraint*> m_constraintDataById;
+		CreateScript                                 createScript;
 
 	public:
 		Physics(btDynamicsWorld *dynWorld = nullptr) {
@@ -226,6 +232,11 @@ namespace robotlib
 			else {
 				m_dynamicsWorld = dynWorld;
 			}
+
+			m_dynamicsWorld->setInternalTickCallback([](btDynamicsWorld *world, btScalar timeStep) {
+				Physics *This = (Physics*)world->getWorldUserInfo();
+				This->internalPreTick(timeStep);
+			}, (void*)this, true);
 		}
 
 		~Physics() {
@@ -270,6 +281,11 @@ namespace robotlib
 			if (!rbdata.canDeactivate) {
 				body->setActivationState(DISABLE_DEACTIVATION);
 			}
+
+			if (rbdata.disableCollision) {
+				body->setCollisionFlags(
+					body->getCollisionFlags() | btCollisionObject::CollisionFlags::CF_NO_CONTACT_RESPONSE);
+			}
 		}
 
 		void create(CRB::HingeConstraint const& hc) {
@@ -284,6 +300,10 @@ namespace robotlib
 			m_constraintsById[hc.id] = c;
 			c->setDbgDrawSize(0.1);
 			c->enableMotor(true);
+
+			auto hcdata = new CRB::HingeConstraint(hc);
+			m_constraintDataById[hc.id] = hcdata;
+			c->setUserConstraintPtr((void*)hcdata);
 		}
 
 		btRigidBody *getRigidBody(std::string const& id) {
@@ -299,6 +319,49 @@ namespace robotlib
 		void simulate(double t) {
 			m_dynamicsWorld->stepSimulation(t);
 		}
+
+		#pragma region PreTick
+	public:
+		typedef std::function<void(double)> PreTickCallback;
+
+	private:
+		std::list<PreTickCallback> m_preTickCallbacks;
+		std::map<int, decltype(m_preTickCallbacks)::iterator> m_preTickCallbackIds;
+		int m_preTickCallbackNewId = 1;
+
+	public:
+		int registerPreTick(PreTickCallback const& cb) {
+			m_preTickCallbacks.push_back(cb);
+			int id = m_preTickCallbackNewId++;
+			auto iter = m_preTickCallbacks.end();
+			iter--;
+			m_preTickCallbackIds[id] = iter;
+			return id;
+		}
+
+		void deregisterPreTick(int id) {
+			auto foundIter = m_preTickCallbackIds.find(id);
+			if (foundIter != m_preTickCallbackIds.end()) {
+				m_preTickCallbacks.erase(m_preTickCallbackIds[id]);
+				m_preTickCallbackIds.erase(id);
+			}
+		}
+
+		void internalPreTick(btScalar timeStep)
+		{
+			//std::cout << "PreTick " << timeStep << std::endl;
+			//for (auto& cons : m_constraints) {
+			//	CRB::HingeConstraint *hdata = (decltype(hdata))cons->getUserConstraintPtr();
+			//	btHingeConstraint *hc = (decltype(hc))cons;
+			//	if (hdata && hdata->velocityFunction) {
+			//		hc->enableAngularMotor(true, hdata->velocityFunction(timeStep), 1);
+			//	}
+			//}
+
+			for (auto cb : m_preTickCallbacks)
+				cb(timeStep);
+		}
+		#pragma endregion
 
 		void debugDraw() {
 			m_dynamicsWorld->setDebugDrawer(&m_debugDrawer);
@@ -327,6 +390,11 @@ namespace robotlib
 				delete c;
 			}
 			m_constraints.clear();
+
+			for (auto& cdata : m_constraintDataById) {
+				delete cdata.second;
+			}
+			m_constraintDataById.clear();
 
 			for (auto rb : m_rigidBodies) {
 				m_dynamicsWorld->removeRigidBody(rb);
@@ -529,7 +597,7 @@ namespace robotlib
 		}
 
 		bool isClosed() {
-			return glfwWindowShouldClose(window);
+			return glfwWindowShouldClose(window) != 0;
 		}
 
 		void swapBuffers() {
@@ -802,6 +870,7 @@ namespace robotlib
 	private:
 		uint64_t freq;
 		uint64_t prevTick;
+		uint64_t firstTick;
 
 	public:
 		Timer()
@@ -814,6 +883,7 @@ namespace robotlib
 		{
 			if (prevTick == 0) {
 				prevTick = glfwGetTimerValue();
+				firstTick = prevTick;
 				return 0;
 			}
 
@@ -821,6 +891,11 @@ namespace robotlib
 			double t = (double(currentTick) - prevTick) / freq;
 			prevTick = currentTick;
 			return t;
+		}
+
+		double totalTime()
+		{
+			return (double(prevTick) - firstTick) / freq;
 		}
 	};
 

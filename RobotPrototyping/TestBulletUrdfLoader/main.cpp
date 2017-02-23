@@ -124,7 +124,7 @@ int main()
 	};
 
 	robotlib::Physics::CRB::RigidBody rb;
-	rb.setShape(new robotlib::Physics::CRB::Shapes::Box(btVector3(1, 1, 1)));
+	rb.shape = robotlib::Physics::CRB::Shapes::Box(btVector3(1, 1, 1));
 	rb.mass = 0;
 	rb.setPosition(btVector3(0, 0, -1));
 	physics.create(rb);
